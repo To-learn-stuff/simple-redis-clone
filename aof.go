@@ -2,10 +2,12 @@ package main
 
 import (
 	"bufio"
+	"fmt"
+	"io"
 	"os"
+	"strings"
 	"sync"
 	"time"
-
 )
 
 type Aof struct {
@@ -23,6 +25,33 @@ func NewAof(path string) (*Aof , error){
 		file: f,
 		rd: bufio.NewReader(f),
 	}
+
+	//goroutine to execute all the command in the disk after recovery
+	go func() {
+        aof.mu.Lock()
+        defer aof.mu.Unlock()
+        
+        for {
+            value, err := aof.readCommand()
+            if err != nil {
+                if err == io.EOF {
+                    break
+                }
+                fmt.Println("Error reading AOF file:", err)
+                break
+            }
+            
+            if len(value.array) > 0 {
+                command := strings.ToUpper(value.array[0].bulk)
+                args := value.array[1:]
+                
+                handler, ok := Handlers[command]
+                if ok {
+                    handler(args)  
+                }
+            }
+        }
+    }()
 
 	//goroutine to sync AOF to disk every 1 sec
 	go func() {
@@ -57,4 +86,9 @@ func (aof *Aof) write(value Value) error{
 	}
 
 	return nil
+}
+
+func (aof *Aof) readCommand() (Value, error) {
+    resp := NewResp(aof.rd)
+    return resp.Read()
 }

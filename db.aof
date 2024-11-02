@@ -7,4 +7,12 @@ $1
 1
 $15
 Anirudh Karanth
-
+*4
+$4
+HSET
+$5
+users
+$1
+2
+$16
+Abhishek Karanth
